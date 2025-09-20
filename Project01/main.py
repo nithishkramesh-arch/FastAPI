@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException, status
 from scalar_fastapi import get_scalar_api_reference
 from typing import Any
 from pydantic import BaseModel
+#from .database import items, save
 app = FastAPI()
 
 items: list[dict] = [
@@ -46,9 +47,12 @@ def getShipmentById(id:int) -> dict | Any:
   return HTTPException(status_code=404, detail="you are a fool")
 
 
+
 class Item(BaseModel):
   item:str
   status:str
+
+
 
 @app.post("/Shipment/NewShipment")
 def addShipment(item:Item):
@@ -60,7 +64,7 @@ def addShipment(item:Item):
   items.append(newItem)
   return items
 
-@app.put("/Shipment")
+@app.put("/Shipment", response_model=list[dict] | Any)
 async def updateShipment(updateItem:Item):
   # for item in items:
   #   if(item["item"] == updateItem.itemName):
@@ -72,7 +76,11 @@ async def updateShipment(updateItem:Item):
     if(item["item"] == updateItem.item):
       existingItem = item
       break
+
+  if(existingItem == {}):
+    raise HTTPException(status_code=404, detail="there is no item")
   existingItem.update(updateItem)
+ # save()
   return items
 
 @app.delete("/Shipment")
@@ -82,6 +90,7 @@ async def deleteShipment(itemName:str):
       items.pop(index)
       break
   return items
+
 
 
 #This below api is to use some other api documentation.
