@@ -2,8 +2,17 @@ from fastapi import FastAPI, HTTPException, status
 from scalar_fastapi import get_scalar_api_reference
 from typing import Any
 from pydantic import BaseModel
+from contextlib import asynccontextmanager
+from rich import print, panel
 #from .database import items, save
-app = FastAPI()
+
+@asynccontextmanager
+async def lifeSpan(app:FastAPI):
+  print(panel.Panel("Server is started", border_style="green"))
+  yield 
+  print(panel.Panel("server is shutdown", border_style="red"))
+
+app = FastAPI(lifespan=lifeSpan)
 
 items: list[dict] = [
   {
