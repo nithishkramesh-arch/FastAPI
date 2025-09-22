@@ -34,12 +34,32 @@ class DataBase:
 """)
      self.saveRecord()
 
-  def insertRecord(self, itemName, itemStatus):
+  def createTable2(self):
+     self.cursor.execute("""
+      create table if not exists students (
+               id int, 
+               name text, 
+               age int)
+""")
+     self.saveRecord()
+
+  def insertRecord(self, itemId, itemName, itemStatus):
     self.cursor.execute("""
-        insert into shipment values(1, :itemName, :itemStatus)
+        insert into shipment values(:id, :itemName, :itemStatus)
                """, {
+                 "id":itemId,
                  "itemName":itemName,
                  "itemStatus":itemStatus
+               })
+    self.saveRecord()
+
+  def insertRecord2(self, itemId, name, age):
+    self.cursor.execute("""
+        insert into students values(:id, :itemName, :itemStatus)
+               """, {
+                 "id":itemId,
+                 "itemName":name,
+                 "itemStatus":age
                })
     self.saveRecord()
 
@@ -50,6 +70,9 @@ class DataBase:
     result = self.cursor.fetchmany(1)
     return result
 
+  def dropTable(self):
+    self.cursor.execute("drop table shipment")
+    self.cursor.execute("drop table shipmentmodel")
      
   def saveRecord(self):
     self.connection.commit()
@@ -76,7 +99,15 @@ class DataBase:
 #   db.close()
 
 with DataBase() as db:
-  print(db.getRecord(1))
+  #print(db.getRecord(1))
+  #db.dropTable()
+  #db.insertRecord("book", "delivered")
+  #db.insertRecord(4,"laptop", "in transit")
+  #db.insertRecord(3,"hen", "packaging")
+  # db.createTable2()
+  # db.insertRecord2(1, "nithish", 25)
+  # db.insertRecord2(2, "harini", 24)
+  pass
 
 
 
