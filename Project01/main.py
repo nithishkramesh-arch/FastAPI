@@ -1,18 +1,28 @@
 from fastapi import FastAPI, HTTPException, status
 from scalar_fastapi import get_scalar_api_reference
-from typing import Any
-from pydantic import BaseModel
+from typing import  Any
+from pydantic import BaseModel, Field
 from contextlib import asynccontextmanager
 from rich import print, panel
-#from .database import items, save
+#from sqlmodel import Session #customize the print message
+from Project01.Databases.models import  ShipmentGetModel, ShipmentModel, ShipmentUpdateModel, Students
+from Project01.Databases.session import SessionDep, createDBTables
 
+#whatever we mentioned here, we can inject while fastapi starts
+#callable function with context manager.
 @asynccontextmanager
 async def lifeSpan(app:FastAPI):
   print(panel.Panel("Server is started", border_style="green"))
+  #this is to create tables while server started running.
+  createDBTables()
   yield 
   print(panel.Panel("server is shutdown", border_style="red"))
 
 app = FastAPI(lifespan=lifeSpan)
+
+#either we can use like this or we can create this in session file and directly import the session type. 
+#Added the code in the session class
+#sessionDep = Annotated[Session, Depends(getSession)]
 
 items: list[dict] = [
   {
@@ -39,8 +49,6 @@ items: list[dict] = [
 ]
 
 @app.get("/Schedule")
-
-
 def getSchedule():
   return {
     "id":1,
@@ -49,56 +57,58 @@ def getSchedule():
   }
 
 @app.get("/Shipment/{id}", status_code=status.HTTP_200_OK)
-def getShipmentById(id:int) -> dict | Any:
-  for item in items:
-    if(item["id"] == id):
-      return item
-  return HTTPException(status_code=404, detail="you are a fool")
+def getShipmentById(id:int, session : SessionDep) -> dict | Any:
+  result = session.get(ShipmentModel, id)
+  if(not result):
+    raise HTTPException(status_code=404, detail={"message":"there is no record like that"})
+  return result
+  # for item in items:
+  #   if(item["id"] == id):
+  #     return item
+  # return HTTPException(status_code=404, detail="you are a fool")
 
 
 
-class Item(BaseModel):
-  item:str
-  status:str
 
 
 
 @app.post("/Shipment/NewShipment")
-def addShipment(item:Item):
-  newItem = {
-    "id": items[len(items) - 1]["id"] + 1,
-    "item":item.item,
-    "status":item.status
-  }
-  items.append(newItem)
-  return items
+def addShipment(newItem:ShipmentGetModel, session:SessionDep):
+  # shipmentDetails = ShipmentModel(
+  #   **item.model_dump()
+  # )
+  #either above one or below one
+  shipmentDetails = ShipmentModel(
+    item=newItem.item,
+    status=newItem.status
+  )
+  session.add(shipmentDetails)
+  session.commit()
+  session.refresh(shipmentDetails)
+  return shipmentDetails.model_dump()
 
-@app.put("/Shipment", response_model=list[dict] | Any)
-async def updateShipment(updateItem:Item):
-  # for item in items:
-  #   if(item["item"] == updateItem.itemName):
-  #     item["item"] = updateItem.itemName
-  #     item["status"] = updateItem.status
-  #     break
-  existingItem = {}
-  for item in items:
-    if(item["item"] == updateItem.item):
-      existingItem = item
-      break
+@app.put("/Shipment/Update/")
+async def updateShipment(id:int, currentData:ShipmentUpdateModel, session:SessionDep):
+  existingData = session.get(ShipmentModel, id)
+  if(not existingData):
+    existingData.sqlmodel_update(currentData.model_dump(exclude_unset=False)) #Need to work on this, 
+    session.add(existingData)
+    session.commit()
+    session.refresh(existingData)
+  else:
+    raise HTTPException(status_code=404, detail="No data")
 
-  if(existingItem == {}):
-    raise HTTPException(status_code=404, detail="there is no item")
-  existingItem.update(updateItem)
- # save()
-  return items
+  # existingData.item = currentData.item
+  # existingData.status = currentData.status
+
+  return existingData
 
 @app.delete("/Shipment")
-async def deleteShipment(itemName:str):
-  for index, item in enumerate(items):
-    if(item["item"] == itemName):
-      items.pop(index)
-      break
-  return items
+async def deleteShipment(itemId:str, session:SessionDep):
+  result = session.get(ShipmentModel, id)
+  session.delete(session.get(ShipmentModel, id))
+  session.commit()
+  return result.id
 
 
 
